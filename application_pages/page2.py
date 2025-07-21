@@ -27,12 +27,16 @@ def generate_synthetic_ild(frequency_params, severity_params, num_observations, 
         # Generate severity amounts for each loss
         severity_amounts = []
         if severity_params['distribution'] == 'lognorm':
-            shape = severity_params['sigma']
-            loc = 0
-            scale = np.exp(severity_params['mean']) # This assumes mean is geometric mean
-            # If 'mean' is arithmetic mean, a more complex transformation is needed
-            # For simplicity, let's assume 'mean' corresponds to the scale parameter (exp(mu))
-            severity_amounts = lognorm.rvs(s=shape, loc=loc, scale=scale, size=num_losses)
+            sigma = float(severity_params['sigma'])       # shape (>0)
+            m     = float(severity_params['mean'])        # arithmetic mean (>0)
+            if sigma <= 0 or m <= 0:
+                raise ValueError("Log‑normal mean and sigma must be positive.")
+            mu = np.log(m) - 0.5 * sigma**2               # underlying normal mean
+            scale = np.exp(mu)                            # SciPy lognorm wants scale = exp(mu)
+            loc = 0                                       # keep location at zero
+            severity_amounts = lognorm.rvs(
+                s=sigma, loc=loc, scale=scale, size=num_losses
+            )
         elif severity_params['distribution'] == 'pareto':
              b = severity_params['shape']
              # Ensure scale is positive
@@ -242,8 +246,9 @@ def run_page2():
             st.write(f"**Fitted ILD Distribution Type:** {ild_fit_type.replace('lognorm', 'Log-Normal').replace('bodytail', 'Body-Tail (Empirical Body / GPD Tail)')}")
 
             if ild_fit_type == "lognorm":
-                st.write(f"**Estimated Parameters (s, loc, scale):** s={ild_fit_params[0]:.4f}, loc={ild_fit_params[1]:.4f}, scale={ild_fit_params[2]:,.2f}")
-                dist_to_plot = fitted_ild_dist
+                s, loc, scale = ild_fit_params 
+                st.write(f"**Estimated Parameters (s, loc, scale):** s={s:.4f}, loc={loc:.4f}, scale={scale:,.2f}")
+                dist_to_plot = stats.lognorm(s=s, loc=loc, scale=scale)
                 st.markdown("""
                 For Log-Normal fit, the parameters are $s$ (shape), $\text{loc}$ (location), and $\text{scale}$.
                 """)
@@ -282,7 +287,7 @@ def run_page2():
                 body_dist, gpd_dist = fitted_ild_dist
                 gpd_params = ild_fit_params # shape, loc, scale for GPD
                 st.write(f"**GPD Tail Parameters (c, loc, scale):** c={gpd_params[0]:.4f}, loc={gpd_params[1]:.4f}, scale={gpd_params[2]:,.2f}")
-                st.markdown("""
+                st.markdown(r"""
                 For the Body-Tail fit:
                 *   The **body** of the distribution (losses $\leq$ threshold) is represented empirically (histogram).
                 *   The **tail** of the distribution (losses $>$ threshold) is modeled by a Generalized Pareto Distribution (GPD).
@@ -318,7 +323,7 @@ def run_page2():
                                            legend=dict(x=0.01, y=0.99))
                 st.plotly_chart(fig_bodytail, use_container_width=True)
 
-                st.markdown("""
+                st.markdown(r"""
                 **Understanding the Body-Tail Fit Plot:**
                 *   The grey histogram shows the empirical distribution of all generated ILD.
                 *   The purple line represents the fitted GPD for losses exceeding the set threshold (green dashed line).
