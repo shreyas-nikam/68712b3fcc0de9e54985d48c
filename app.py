@@ -1,9 +1,9 @@
 
 import streamlit as st
-st.set_page_config(page_title="QuLab", layout="wide")
+st.set_page_config(page_title="QuLab: Scenario-ILD Integration Workbench", layout="wide")
 st.sidebar.image("https://www.quantuniversity.com/assets/img/logo5.jpg")
 st.sidebar.divider()
-st.title("QuLab")
+st.title("QuLab: Scenario-ILD Integration Workbench")
 st.divider()
 st.markdown("""
 In this lab, we explore operational risk modeling concepts, bridging the gap between theoretical understanding and practical application.
